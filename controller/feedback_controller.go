@@ -4,6 +4,7 @@ import (
 	"CRUDwPOSTGRES/initializers"
 	"CRUDwPOSTGRES/models"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 	"strconv"
 	"strings"
 	"time"
@@ -74,4 +75,24 @@ func FindFeedbackHandler(c *fiber.Ctx) error {
 		"result":    len(feedbacks),
 		"feedbacks": feedbacks,
 	})
+}
+
+func FindFeedbackByIdHandler(c *fiber.Ctx) error {
+	feedbackId := c.Params("feedbackId")
+	var feedback models.Feedback
+	result := initializers.DB.First(&feedback, "id = ?", feedbackId)
+	if err := result.Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"status":  "fail",
+				"message": "No feedback found with this admin",
+			})
+		}
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success",
+		"data": fiber.Map{"feedback": feedback}})
 }
