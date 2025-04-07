@@ -96,3 +96,58 @@ func FindFeedbackByIdHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success",
 		"data": fiber.Map{"feedback": feedback}})
 }
+
+func UpdateFeedbackHandler(c *fiber.Ctx) error {
+	// read from URL
+	var payload *models.UpdateFeedbackSchema
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "fail",
+			"message": err.Error(),
+		})
+	}
+
+	// extract feedback ID from url
+	feedbackId := c.Params("feedbackId")
+
+	// find in DB
+	var feedback models.Feedback
+	result := initializers.DB.First(&feedback, "id = ?", feedbackId)
+	if err := result.Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "no feedback with this ID",
+			})
+		}
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	// update only field that have changed
+	updates := make(map[string]interface{})
+	if payload.Name != "" {
+		updates["name"] = payload.Name
+	}
+	if payload.Email != "" {
+		updates["email"] = payload.Email
+	}
+	if payload.Feedback != "" {
+		updates["feedback"] = payload.Feedback
+	}
+	if payload.Status != "" {
+		updates["status"] = payload.Status
+	}
+	if payload.Rating != nil {
+		updates["rating"] = payload.Rating
+	}
+
+	updates["updated_at"] = time.Now()
+
+	// update database
+	initializers.DB.Model(&feedback).Updates(updates)
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"data": fiber.Map{"feedback": feedback},
+	})
+}
