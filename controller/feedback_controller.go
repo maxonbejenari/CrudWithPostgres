@@ -3,6 +3,7 @@ package controller
 import (
 	"CRUDwPOSTGRES/initializers"
 	"CRUDwPOSTGRES/models"
+	"errors"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 	"strconv"
@@ -79,13 +80,13 @@ func FindFeedbackHandler(c *fiber.Ctx) error {
 
 func FindFeedbackByIdHandler(c *fiber.Ctx) error {
 	feedbackId := c.Params("feedbackId")
-	var feedback models.Feedback
+	var feedback *models.Feedback
 	result := initializers.DB.First(&feedback, "id = ?", feedbackId)
 	if err := result.Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"status":  "fail",
-				"message": "No feedback found with this admin",
+				"message": "No feedback found with this id",
 			})
 		}
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
@@ -114,7 +115,7 @@ func UpdateFeedbackHandler(c *fiber.Ctx) error {
 	var feedback models.Feedback
 	result := initializers.DB.First(&feedback, "id = ?", feedbackId)
 	if err := result.Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "no feedback with this ID",
 			})
@@ -150,4 +151,22 @@ func UpdateFeedbackHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"data": fiber.Map{"feedback": feedback},
 	})
+}
+
+func DeleteFeedbackHandler(c *fiber.Ctx) error {
+	feedbackId := c.Params("feedbackID")
+
+	result := initializers.DB.Delete(&models.Feedback{}, "id = ?", feedbackId)
+
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "No note with that id exists",
+		})
+	} else if result.Error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": result.Error,
+		})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
